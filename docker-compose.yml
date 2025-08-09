@@ -1,0 +1,40 @@
+services:
+  ui:
+    build: ./ui
+    container_name: loadtest-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
+
+  orchestrator:
+    build: ./orchestrator
+    container_name: loadtest-orchestrator
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys,json; sys.exit(0 if json.load(urllib.request.urlopen('http://localhost:8080/health')).get('status')=='ok' else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  
+  worker:
+    build: ./workers
+    container_name: loadtest-worker
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    environment:
+      - ORCHESTRATOR_URL=http://orchestrator:8080
+    ports:
+      - "8090:8090"     # pour tester /health du worker
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
