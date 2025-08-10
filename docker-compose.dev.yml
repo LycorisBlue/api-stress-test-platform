@@ -1,0 +1,59 @@
+services:
+  ui:
+    build: ./ui
+    container_name: loadtest-ui-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount du code source pour hot reload
+      - ./ui/src:/app/src
+      - ./ui/public:/app/public
+      - ./ui/package.json:/app/package.json
+      - ./ui/tailwind.config.js:/app/tailwind.config.js
+      - ./ui/next.config.ts:/app/next.config.ts
+      - ./ui/tsconfig.json:/app/tsconfig.json
+      # Exclure node_modules pour éviter les conflits
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
+
+  orchestrator:
+    build: ./orchestrator
+    container_name: loadtest-orchestrator-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount du code Python pour hot reload
+      - ./orchestrator:/app
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys,json; sys.exit(0 if json.load(urllib.request.urlopen('http://localhost:8080/health')).get('status')=='ok' else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  worker:
+    build: ./workers
+    container_name: loadtest-worker-dev
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    environment:
+      - ORCHESTRATOR_URL=http://orchestrator:8080
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped

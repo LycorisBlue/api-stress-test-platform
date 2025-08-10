@@ -1,0 +1,10 @@
+{
+  "name": "Test simple",
+  "steps": [
+    {
+      "name": "Test",
+      "method": "GET",
+      "url": "http://example.com"
+    }
+  ]
+}

@@ -9,8 +9,8 @@ RUN go mod download
 # copier le reste du code
 COPY . .
 
-# build statique linux/arm64 (ok pour Mac M1 et VPS ARM/AMD)
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /worker
+# build statique - CHANGEMENT ICI : suppression de GOARCH pour auto-détection
+RUN CGO_ENABLED=0 GOOS=linux go build -o /worker
 
 # ---- runtime ----
 FROM alpine:3.20
