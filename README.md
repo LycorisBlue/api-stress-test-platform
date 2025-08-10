@@ -1,5 +1,3 @@
-## 📝 **Mise à jour du README.md avec exemples de fichiers**
-
 # API Load & Stress Test Tool
 
 ## 🚀 Description
