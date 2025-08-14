@@ -130,6 +130,42 @@ export default function HomePage() {
     }
   };
 
+  const handleExecuteTest = async () => {
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8080/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Succès - afficher le résultat
+        alert(`Test lancé avec succès!\nTest ID: ${result.test_id}\nStatut: ${result.status}\nMessage: ${result.message}`);
+
+        // Reset de l'interface après succès
+        setValidationResult(null);
+        setFiles({
+          scenario: { file: null, status: 'idle' },
+          variables: { file: null, status: 'idle' },
+          users: { file: null, status: 'idle' }
+        });
+      } else {
+        // Erreur
+        alert(`Erreur lors du lancement du test:\n${result.error || result.message}`);
+      }
+
+    } catch (error) {
+      alert(`Erreur de connexion:\n${error}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const getFileStatusColor = (status: FileState['status']) => {
     switch (status) {
       case 'valid': return 'border-green-500 bg-green-50';
@@ -379,8 +415,8 @@ export default function HomePage() {
               onClick={handleSubmit}
               disabled={!allFilesValid || isSubmitting}
               className={`px-8 py-3 rounded-lg font-medium transition-colors ${allFilesValid && !isSubmitting
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
             >
               {isSubmitting ? 'Validation en cours...' :
@@ -404,9 +440,14 @@ export default function HomePage() {
                 Modifier les fichiers
               </button>
               <button
-                className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                onClick={handleExecuteTest}
+                disabled={isSubmitting}
+                className={`px-8 py-3 rounded-lg font-medium transition-colors ${isSubmitting
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
               >
-                Lancer le test de charge
+                {isSubmitting ? 'Exécution en cours...' : 'Lancer le test de charge'}
               </button>
             </div>
           )}
