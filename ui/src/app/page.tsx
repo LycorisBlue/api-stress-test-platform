@@ -1,7 +1,9 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { logout, getUsername, authenticatedFetch, getApiUrl } from '@/lib/auth';
 
 interface FileState {
   file: File | null;
@@ -26,6 +28,7 @@ interface ValidationResponse {
 }
 
 export default function HomePage() {
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [files, setFiles] = useState<{
     scenario: FileState;
     variables: FileState;
@@ -38,6 +41,25 @@ export default function HomePage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
+
+  const router = useRouter();
+
+  // Charger le nom d'utilisateur au montage
+  useEffect(() => {
+    const username = getUsername();
+    setCurrentUser(username);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Erreur de déconnexion:', error);
+      // Rediriger quand même vers login
+      router.push('/login');
+    }
+  };
 
   const validateFile = (file: File, type: 'scenario' | 'variables' | 'users'): { valid: boolean; error?: string } => {
     // Validation taille (max 10MB)
@@ -105,7 +127,7 @@ export default function HomePage() {
         formData.append('users', files.users.file);
       }
 
-      const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8080/upload/validate`, {
+      const response = await authenticatedFetch(getApiUrl('/upload/validate'), {
         method: 'POST',
         body: formData,
       });
@@ -114,6 +136,11 @@ export default function HomePage() {
       setValidationResult(result);
 
     } catch (error) {
+      if (error instanceof Error && error.message === 'Session expirée') {
+        // La redirection vers /login est déjà gérée dans authenticatedFetch
+        return;
+      }
+
       setValidationResult({
         status: 'error',
         message: 'Erreur de connexion à l\'API',
@@ -134,11 +161,8 @@ export default function HomePage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${window.location.protocol}//${window.location.hostname}:8080/execute`, {
+      const response = await authenticatedFetch(getApiUrl('/execute'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
       const result = await response.json();
@@ -160,6 +184,10 @@ export default function HomePage() {
       }
 
     } catch (error) {
+      if (error instanceof Error && error.message === 'Session expirée') {
+        // La redirection vers /login est déjà gérée dans authenticatedFetch
+        return;
+      }
       alert(`Erreur de connexion:\n${error}`);
     } finally {
       setIsSubmitting(false);
@@ -187,14 +215,28 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            API Load & Stress Test
-          </h1>
-          <p className="text-gray-600">
-            Uploadez vos fichiers de configuration pour démarrer un test
-          </p>
+        {/* Header avec info utilisateur et déconnexion */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              API Load & Stress Test
+            </h1>
+            <p className="text-gray-600">
+              Uploadez vos fichiers de configuration pour démarrer un test
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-600">
+              Connecté en tant que <span className="font-medium text-gray-900">{currentUser}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Déconnexion
+            </button>
+          </div>
         </div>
 
         {/* Upload zones */}
